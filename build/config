@@ -5,7 +5,7 @@ CONFIG_MLX5=y
 # Enable Mellanox ConnectX-3 NIC Support
 CONFIG_MLX4=n
 # Enable SPDK NVMe support
-CONFIG_SPDK=n
+CONFIG_SPDK=y
 # Enable debug build mode (slower but enables several runtime checks)
 CONFIG_DEBUG=n
 # Enable additional compiler optimizations (may reduce compatibility)
