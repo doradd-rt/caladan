@@ -1,14 +1,19 @@
 extern crate test;
 
+use std::sync::Arc;
 use std::result::Result;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 extern crate rand;
 use duration_to_ns;
 use rand::Rng;
 use rand_mt::Mt64;
 
+extern crate shenango;
+use shenango::SpinLock;
+
 pub enum FakeWorker {
+    Ycsb(Arc<Vec<SpinLock>>),
     Sqrt,
     StridedMem(Vec<u8>, usize),
     RandomMem(Vec<u8>, Vec<usize>),
@@ -16,7 +21,14 @@ pub enum FakeWorker {
     PointerChase(Vec<usize>),
 }
 
+const ROWS_PER_TX: usize = 10;
+static mut CNT: usize = 0;
+
 impl FakeWorker {
+    pub fn create_ycsb(lockdb: Arc<Vec<SpinLock>>) -> Result<Self, &'static str> {
+        Ok(FakeWorker::Ycsb(lockdb.clone()))
+    }
+
     pub fn create(spec: &str) -> Result<Self, &str> {
         let seed: u64 = rand::thread_rng().gen();
         let mut rng: Mt64 = Mt64::new(seed);
@@ -108,8 +120,32 @@ impl FakeWorker {
         println!("{} us: {} iterations", target_us, iterations);
     }
 
+    pub fn spin() {
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_micros(2) {}
+    }
+
     pub fn work(&self, iters: u64, randomness: u64) {
         match *self {
+            FakeWorker::Ycsb(ref lockdb) => unsafe {
+                let mut locks: Vec<&SpinLock> = Vec::with_capacity(ROWS_PER_TX);
+                for i in 0..ROWS_PER_TX {
+                    if let Some(splock) = lockdb.get((i + CNT) % 10_000_000) {
+                        locks.push(&splock);
+                    }
+                }
+
+                for i in 0..ROWS_PER_TX {
+                    locks[i].lock();
+                }
+
+                Self::spin();
+
+                for i in (0..ROWS_PER_TX).rev() {
+                    locks[i].unlock();
+                }
+                CNT += ROWS_PER_TX;
+            },
             FakeWorker::Sqrt => {
                 let k = 2350845.545;
                 for i in 0..iters {

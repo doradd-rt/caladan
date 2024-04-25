@@ -33,6 +33,7 @@ use itertools::Itertools;
 use rand::Rng;
 use rand_mt::Mt64;
 use shenango::udp::UdpSpawner;
+use shenango::SpinLock;
 
 mod backend;
 use backend::*;
@@ -234,6 +235,32 @@ fn run_spawner_server(addr: SocketAddrV4, workerspec: &str) {
     static mut SPAWNER_WORKER: Option<FakeWorker> = None;
     unsafe {
         SPAWNER_WORKER = Some(FakeWorker::create(workerspec).unwrap());
+    }
+    extern "C" fn echo(d: *mut shenango::ffi::udp_spawn_data) {
+        unsafe {
+            let buf = slice::from_raw_parts((*d).buf as *mut u8, (*d).len as usize);
+            let mut payload = Payload::deserialize(&mut &buf[..]).unwrap();
+            let worker = SPAWNER_WORKER.as_ref().unwrap();
+            worker.work(payload.work_iterations, payload.randomness);
+            payload.randomness = shenango::rdtsc();
+            let mut array = ArrayVec::<_, PAYLOAD_SIZE>::new();
+            payload.serialize_into(&mut array).unwrap();
+            let _ = UdpSpawner::reply(d, array.as_slice());
+            UdpSpawner::release_data(d);
+        }
+    }
+
+    let _s = unsafe { UdpSpawner::new(addr, echo).unwrap() };
+
+    let wg = shenango::WaitGroup::new();
+    wg.add(1);
+    wg.wait();
+}
+
+fn run_new_spawner_server(addr: SocketAddrV4, _workerspec: &str, lockdb: Arc<Vec<SpinLock>>) {
+    static mut SPAWNER_WORKER: Option<FakeWorker> = None;
+    unsafe {
+        SPAWNER_WORKER = Some(FakeWorker::create_ycsb(lockdb).unwrap());
     }
     extern "C" fn echo(d: *mut shenango::ffi::udp_spawn_data) {
         unsafe {
@@ -1338,10 +1365,19 @@ fn main() {
         return;
     }
 
+    let mut spinlocks: Vec<SpinLock> = Vec::with_capacity(10_000_000);
+
+    // Fill the vector with 10 million instances of Spinlock
+    for _ in 0..10_000_000 {
+        spinlocks.push(SpinLock::new());
+    }
+
+    let lockdb = Arc::new(spinlocks);
     match mode {
         "spawner-server" => match tport {
             Transport::Udp => {
-                backend.init_and_run(config, move || run_spawner_server(addrs[0], &fwspec))
+                // backend.init_and_run(config, move || run_spawner_server(addrs[0], &fwspec))
+                backend.init_and_run(config, move || run_new_spawner_server(addrs[0], &fwspec, lockdb.clone()))
             }
             Transport::Tcp => backend.init_and_run(config, move || {
                 run_tcp_server(backend, addrs[0], fakeworker)
