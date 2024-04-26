@@ -10,10 +10,10 @@ use rand::Rng;
 use rand_mt::Mt64;
 
 extern crate shenango;
-use shenango::SpinLock;
+use shenango::Mutex;
 
 pub enum FakeWorker {
-    Ycsb(Arc<Vec<SpinLock>>),
+    Ycsb(Arc<Vec<Mutex>>),
     Sqrt,
     StridedMem(Vec<u8>, usize),
     RandomMem(Vec<u8>, Vec<usize>),
@@ -25,7 +25,7 @@ const ROWS_PER_TX: usize = 10;
 static mut CNT: usize = 0;
 
 impl FakeWorker {
-    pub fn create_ycsb(lockdb: Arc<Vec<SpinLock>>) -> Result<Self, &'static str> {
+    pub fn create_ycsb(lockdb: Arc<Vec<Mutex>>) -> Result<Self, &'static str> {
         Ok(FakeWorker::Ycsb(lockdb.clone()))
     }
 
@@ -128,7 +128,7 @@ impl FakeWorker {
     pub fn work(&self, iters: u64, randomness: u64) {
         match *self {
             FakeWorker::Ycsb(ref lockdb) => unsafe {
-                let mut locks: Vec<&SpinLock> = Vec::with_capacity(ROWS_PER_TX);
+                let mut locks: Vec<&Mutex> = Vec::with_capacity(ROWS_PER_TX);
                 for i in 0..ROWS_PER_TX {
                     if let Some(splock) = lockdb.get((i + CNT) % 10_000_000) {
                         locks.push(&splock);

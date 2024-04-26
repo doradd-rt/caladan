@@ -33,7 +33,7 @@ use itertools::Itertools;
 use rand::Rng;
 use rand_mt::Mt64;
 use shenango::udp::UdpSpawner;
-use shenango::SpinLock;
+use shenango::Mutex;
 
 mod backend;
 use backend::*;
@@ -257,7 +257,7 @@ fn run_spawner_server(addr: SocketAddrV4, workerspec: &str) {
     wg.wait();
 }
 
-fn run_new_spawner_server(addr: SocketAddrV4, _workerspec: &str, lockdb: Arc<Vec<SpinLock>>) {
+fn run_new_spawner_server(addr: SocketAddrV4, _workerspec: &str, lockdb: Arc<Vec<Mutex>>) {
     static mut SPAWNER_WORKER: Option<FakeWorker> = None;
     unsafe {
         SPAWNER_WORKER = Some(FakeWorker::create_ycsb(lockdb).unwrap());
@@ -1365,11 +1365,11 @@ fn main() {
         return;
     }
 
-    let mut spinlocks: Vec<SpinLock> = Vec::with_capacity(10_000_000);
+    let mut spinlocks: Vec<Mutex> = Vec::with_capacity(10_000_000);
 
     // Fill the vector with 10 million instances of Spinlock
     for _ in 0..10_000_000 {
-        spinlocks.push(SpinLock::new());
+        spinlocks.push(Mutex::new());
     }
 
     let lockdb = Arc::new(spinlocks);
