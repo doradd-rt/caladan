@@ -125,27 +125,37 @@ impl FakeWorker {
         while start.elapsed() < Duration::from_micros(2) {}
     }
 
-    pub fn work(&self, iters: u64, randomness: u64) {
+    pub fn work_ycsb(&self, indices: &[u32;10], _write_set: u16) {
         match *self {
-            FakeWorker::Ycsb(ref lockdb) => unsafe {
+            FakeWorker::Ycsb(ref lockdb) => {
                 let mut locks: Vec<&Mutex> = Vec::with_capacity(ROWS_PER_TX);
                 for i in 0..ROWS_PER_TX {
-                    if let Some(splock) = lockdb.get((i + CNT) % 10_000_000) {
+                    if let Some(splock) = lockdb.get(indices[i] as usize) {
                         locks.push(&splock);
                     }
                 }
-
+        
                 for i in 0..ROWS_PER_TX {
                     locks[i].lock();
                 }
-
+        
                 Self::spin();
-
+        
                 for i in (0..ROWS_PER_TX).rev() {
                     locks[i].unlock();
                 }
-                CNT += ROWS_PER_TX;
-            },
+            }
+            FakeWorker::Sqrt => {}
+            FakeWorker::StridedMem(_, _)=> {}
+            FakeWorker::RandomMem(_, _) => {}
+            FakeWorker::StreamingMem(..) => {}
+            FakeWorker::PointerChase(..) => {}
+        }
+    }
+        
+    pub fn work(&self, iters: u64, randomness: u64) {
+        match *self {
+            FakeWorker::Ycsb(ref _lockdb) => {},
             FakeWorker::Sqrt => {
                 let k = 2350845.545;
                 for i in 0..iters {

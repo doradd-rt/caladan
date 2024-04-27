@@ -72,6 +72,9 @@ use http::HttpProtocol;
 mod distribution;
 use distribution::Distribution;
 
+mod ycsb;
+use ycsb::{YcsbPayload, YCSB_PAYLOAD_SIZE};
+
 arg_enum! {
 #[derive(Copy, Clone)]
 pub enum Transport {
@@ -265,11 +268,10 @@ fn run_new_spawner_server(addr: SocketAddrV4, _workerspec: &str, lockdb: Arc<Vec
     extern "C" fn echo(d: *mut shenango::ffi::udp_spawn_data) {
         unsafe {
             let buf = slice::from_raw_parts((*d).buf as *mut u8, (*d).len as usize);
-            let mut payload = Payload::deserialize(&mut &buf[..]).unwrap();
+            let payload = YcsbPayload::deserialize(&mut &buf[..]).unwrap();
             let worker = SPAWNER_WORKER.as_ref().unwrap();
-            worker.work(payload.work_iterations, payload.randomness);
-            payload.randomness = shenango::rdtsc();
-            let mut array = ArrayVec::<_, PAYLOAD_SIZE>::new();
+            worker.work_ycsb(&payload.indices, payload.write_set);
+            let mut array = ArrayVec::<_, 8>::new(); // only timestamp field is sent back
             payload.serialize_into(&mut array).unwrap();
             let _ = UdpSpawner::reply(d, array.as_slice());
             UdpSpawner::release_data(d);
