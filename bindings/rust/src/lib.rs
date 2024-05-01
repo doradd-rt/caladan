@@ -127,7 +127,6 @@ impl Default for WaitGroup {
 unsafe impl Send for WaitGroup {}
 unsafe impl Sync for WaitGroup {}
 
-#[derive(Clone)]
 pub struct Mutex {
     inner: Arc<ffi::mutex>,
 }
@@ -139,9 +138,13 @@ impl Mutex {
         let inner = unsafe { inner_uninit.assume_init() };
         Self { inner }
     }
+
+    #[inline]
     pub fn lock(&self) {
         unsafe { ffi::__mutex_lock(&*self.inner as *const _ as *mut _) }
     }
+
+    #[inline]
     pub fn unlock(&self) {
         unsafe { ffi::__mutex_unlock(&*self.inner as *const _ as *mut _) }
     }
@@ -149,10 +152,9 @@ impl Mutex {
 
 impl Default for Mutex {
     fn default() -> Self {
-        Mutex::new()
+        Self::new()
     }
 }
-
 unsafe impl Send for Mutex {}
 unsafe impl Sync for Mutex {}
 

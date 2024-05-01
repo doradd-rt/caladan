@@ -268,10 +268,10 @@ fn run_new_spawner_server(addr: SocketAddrV4, _workerspec: &str, lockdb: Arc<Vec
     extern "C" fn echo(d: *mut shenango::ffi::udp_spawn_data) {
         unsafe {
             let buf = slice::from_raw_parts((*d).buf as *mut u8, (*d).len as usize);
-            let payload = YcsbPayload::deserialize(&mut &buf[..]).unwrap();
+            let mut payload = YcsbPayload::deserialize(&mut &buf[..]).unwrap();
             let worker = SPAWNER_WORKER.as_ref().unwrap();
-            worker.work_ycsb(&payload.indices, payload.write_set);
-            let mut array = ArrayVec::<_, 8>::new(); // only timestamp field is sent back
+            worker.work_ycsb(&mut payload.indices, payload.write_set);
+            let mut array = ArrayVec::<_, YCSB_PAYLOAD_SIZE>::new(); // only timestamp field is sent back
             payload.serialize_into(&mut array).unwrap();
             let _ = UdpSpawner::reply(d, array.as_slice());
             UdpSpawner::release_data(d);

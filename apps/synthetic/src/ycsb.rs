@@ -8,7 +8,7 @@ pub struct YcsbPayload {
     pub write_set: u16,
 }
 
-pub const YCSB_PAYLOAD_SIZE: usize = 50;
+pub const YCSB_PAYLOAD_SIZE: usize = 56;
 
 impl YcsbPayload {
     pub fn serialize_into<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {

@@ -22,6 +22,7 @@ pub enum FakeWorker {
 }
 
 const ROWS_PER_TX: usize = 10;
+const SPIN_TIME: u64 = 5;
 static mut CNT: usize = 0;
 
 impl FakeWorker {
@@ -122,12 +123,13 @@ impl FakeWorker {
 
     pub fn spin() {
         let start = Instant::now();
-        while start.elapsed() < Duration::from_micros(2) {}
+        while start.elapsed() < Duration::from_micros(SPIN_TIME) {}
     }
 
-    pub fn work_ycsb(&self, indices: &[u32;10], _write_set: u16) {
+    pub fn work_ycsb(&self, indices: &mut [u32;10], _write_set: u16) {
         match *self {
             FakeWorker::Ycsb(ref lockdb) => {
+                indices.sort();
                 let mut locks: Vec<&Mutex> = Vec::with_capacity(ROWS_PER_TX);
                 for i in 0..ROWS_PER_TX {
                     if let Some(splock) = lockdb.get(indices[i] as usize) {
