@@ -22,8 +22,6 @@ pub enum FakeWorker {
 }
 
 const ROWS_PER_TX: usize = 10;
-const SPIN_TIME: u64 = 5;
-static mut CNT: usize = 0;
 
 impl FakeWorker {
     pub fn create_ycsb(lockdb: Arc<Vec<Mutex>>) -> Result<Self, &'static str> {
@@ -121,12 +119,12 @@ impl FakeWorker {
         println!("{} us: {} iterations", target_us, iterations);
     }
 
-    pub fn spin() {
+    pub fn spin(duration: u16) {
         let start = Instant::now();
-        while start.elapsed() < Duration::from_micros(SPIN_TIME) {}
+        while start.elapsed() < Duration::from_micros(duration.into()) {}
     }
 
-    pub fn work_ycsb(&self, indices: &mut [u32;10], _write_set: u16) {
+    pub fn work_ycsb(&self, indices: &mut [u32;10], spin_usec: u16) {
         match *self {
             FakeWorker::Ycsb(ref lockdb) => {
                 indices.sort();
@@ -141,7 +139,7 @@ impl FakeWorker {
                     locks[i].lock();
                 }
         
-                Self::spin();
+                Self::spin(spin_usec);
         
                 for i in (0..ROWS_PER_TX).rev() {
                     locks[i].unlock();

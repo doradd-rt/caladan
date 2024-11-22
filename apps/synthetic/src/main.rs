@@ -234,6 +234,7 @@ fn run_tcp_server(backend: Backend, addr: SocketAddrV4, worker: Arc<FakeWorker>)
     }
 }
 
+#[allow(dead_code)]
 fn run_spawner_server(addr: SocketAddrV4, workerspec: &str) {
     static mut SPAWNER_WORKER: Option<FakeWorker> = None;
     unsafe {
@@ -270,7 +271,7 @@ fn run_new_spawner_server(addr: SocketAddrV4, _workerspec: &str, lockdb: Arc<Vec
             let buf = slice::from_raw_parts((*d).buf as *mut u8, (*d).len as usize);
             let mut payload = YcsbPayload::deserialize(&mut &buf[..]).unwrap();
             let worker = SPAWNER_WORKER.as_ref().unwrap();
-            worker.work_ycsb(&mut payload.indices, payload.write_set);
+            worker.work_ycsb(&mut payload.indices, payload.spin_usec);
             let mut array = ArrayVec::<_, YCSB_PAYLOAD_SIZE>::new(); // only timestamp field is sent back
             payload.serialize_into(&mut array).unwrap();
             let _ = UdpSpawner::reply(d, array.as_slice());
