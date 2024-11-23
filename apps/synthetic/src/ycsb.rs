@@ -5,7 +5,7 @@ use std::io;
 pub struct YcsbPayload {
     pub _timestamp: u64,
     pub indices: [u32; 10],
-    pub spin_usec: u16,
+    pub write_set: u16,
 }
 
 pub const YCSB_PAYLOAD_SIZE: usize = 56;
@@ -27,7 +27,7 @@ impl YcsbPayload {
                 }
             indices
             },
-            spin_usec: reader.read_u16::<LittleEndian>()?,
+            write_set: reader.read_u16::<LittleEndian>()?,
         };
         return Ok(p);
     }

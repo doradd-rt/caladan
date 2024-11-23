@@ -2,7 +2,7 @@ extern crate test;
 
 use std::sync::Arc;
 use std::result::Result;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 extern crate rand;
 use duration_to_ns;
@@ -119,12 +119,15 @@ impl FakeWorker {
         println!("{} us: {} iterations", target_us, iterations);
     }
 
-    pub fn spin(duration: u16) {
-        let start = Instant::now();
-        while start.elapsed() < Duration::from_micros(duration.into()) {}
+    pub fn sqrt_synthetic() {
+        let k = 2350845.545;
+        // d6515 calibrate: 1921 for 5usec, 38413 for 100usec
+        for i in 0..1921 {
+            test::black_box(f64::sqrt(k * i as f64));
+        }
     }
 
-    pub fn work_ycsb(&self, indices: &mut [u32;10], spin_usec: u16) {
+    pub fn work_ycsb(&self, indices: &mut [u32;10]) {
         match *self {
             FakeWorker::Ycsb(ref lockdb) => {
                 indices.sort();
@@ -139,7 +142,7 @@ impl FakeWorker {
                     locks[i].lock();
                 }
         
-                Self::spin(spin_usec);
+                Self::sqrt_synthetic();
         
                 for i in (0..ROWS_PER_TX).rev() {
                     locks[i].unlock();
